@@ -1,0 +1,17 @@
+== npm test ==
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m   Start at [22m 18:47:46
+[2m   Duration [22m 30.12s[2m (transform 194ms, setup 337ms, collect 8.63s, tests 18.04s, environment 2.25s, prepare 248ms)[22m
+
+
+== npm run build ==
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 13.21s[39m
+== backend pytest (frontend 改动后回归) ==
+................                                                         [100%]
+88 passed in 0.57s

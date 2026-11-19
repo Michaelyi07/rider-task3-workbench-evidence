@@ -64,9 +64,53 @@ DB 层实测：名额 5/5 用尽、booking 行数恰好 5、outbox 事件恰好 
   且 `reset_station` 按 `payload->>'station_id'` 精确清理 outbox。修复后 3 轮全绿（见上方输出）。
 - `Dispatcher.run_round` 每轮只扫描投递一次，重试由 worker 多轮驱动；对应测试改为多轮调用后通过。
 
+## 5. 前端真实构建与测试（2026-11-19，Node v22.22.2 / npm 10.9.7，真实执行）
+React 18 + Ant Design 5 + Vite 5 + Vitest，位于 `frontend/`，覆盖 AC5/AC6：
+列表默认脱敏与筛选搜索、详情（AI 画像/初筛建议 ✓!/操作）、查看完整号码（理由必填 → vault detokenize mock，
+仅显示一次不缓存）、标记不合适（无理由禁提交）、右下角个人水印（姓名 · 工号 · 日期，CSS 半透明 fixed）。
+前端默认走内置契约 mock（`src/api/mock.js`），不依赖后端起服；`VITE_USE_MOCK=false` 时直连后端。
+
+```
+$ cd frontend && env -u NODE_OPTIONS npm install
+added 241 packages in 1m
+
+$ cd frontend && env -u NODE_OPTIONS npm test
+✓ 列表默认脱敏：显示 138****8000，不出现完整号码
+✓ maskPhone/maskName 工具符合契约掩码格式
+✓ 标记不合适：无理由时禁提交，填理由后可提交
+✓ 查看完整号码：必须填理由，调 vault detokenize 后仅显示一次
+✓ AC6：页面右下角存在个人水印（姓名 · 工号 · 日期）
+Test Files  1 passed (1)
+Tests  5 passed (5)
+
+$ cd frontend && env -u NODE_OPTIONS npm run build
+✓ 1472 modules transformed.
+dist/index.html                  0.34 kB │ gzip:   0.28 kB
+dist/assets/index-BGh7lsRS.js  922.21 kB │ gzip: 293.54 kB
+✓ built in 13.74s
+```
+
+本机坑位：本机 `NODE_OPTIONS` 与 vite/vitest 冲突，以上命令均必须 `env -u NODE_OPTIONS npm …`。
+
+真实排错记录（非编造）：
+1. 初版 3 条用例超时（jsdom 下 antd 渲染慢，默认 5s 超时）→ `vite.config.js` 设 `testTimeout: 30000`。
+2. reveal 用例「关闭弹窗后不缓存」断言失败：根因是 antd Modal（rc-dialog）关闭且未设 `destroyOnClose` 时
+   会 memo 保留最后打开态的内容快照（jsdom 动画又永不结束），并非状态未重置。
+   修复：两个 Modal 加 `destroyOnClose`（关闭即卸载内容，同时正符合「不在前端缓存」语义）；
+   测试环境另用 `<ConfigProvider theme={{ token: { motion: false } }}>` 全局关动画消除不确定性。
+   修复后 5/5 全绿，复跑结论一致。
+
+后端回归（前端改动后复跑）：`env -u NODE_OPTIONS D:/tmp/pg16/.venv-pg/Scripts/python.exe -m pytest`
+→ **88 passed in 0.57s**，与第 1 节一致（证据存 `evidence/frontend.txt`）。
+
+compose 前端服务：`docker-compose.yml` 新增 `frontend`（`frontend/Dockerfile`：node:22-alpine 构建 →
+nginx:1.27-alpine 静态托管，`frontend/nginx.conf` 将 `/api/` 反代到 compose 服务 `app:8000`，
+宿主机 8080 端口）。Docker 冷启动需客户环境验证（见下）。
+
 ## 边界（诚实标注：需客户环境）
-- `docker compose up --build -d` 冷启动、AC6 页面水印截图（Playwright）、前端 React+AntD 完整工作台、
-  真实 JWT/权限与任务1/任务5真实服务对接 —— 本机无 Docker/Node/uvicorn，未在本机验证，需在客户环境执行。
+- `docker compose up --build -d` 冷启动、AC6 页面水印浏览器截图（Playwright）、
+  真实 JWT/权限与任务1/任务5真实服务对接 —— 本机无 Docker/uvicorn，未在本机验证，需在客户环境执行。
+  （前端 React+AntD 工作台已完成，并已在本机真实 build + test，见第 5 节。）
 - 本仓库 `src/main.py` 已交付 OpenAPI 与全部后端路由；vault/agent/LLM 依赖按契约 mock。
 - 生产部署须替换 `VAULT_PEPPER`、Webhook secret、JWT 密钥，并启用任务5的加密与审计实现（本任务明确排除）。
 - 并发方案为知识卡推荐的 PG 行锁（方案 A）；未使用 Redis 分布式锁（方案 C）或乐观锁（方案 B），
