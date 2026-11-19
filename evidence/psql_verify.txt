@@ -1,0 +1,16 @@
+=== psql direct DB verification (after 3 rounds) ===
+ id | open_quota | booked_count 
+----+------------+--------------
+ S1 |          5 |            5
+(1 row)
+
+ booking_rows 
+--------------
+            5
+(1 row)
+
+   event_type    | count 
+-----------------+-------
+ booking.created |     5
+(1 row)
+

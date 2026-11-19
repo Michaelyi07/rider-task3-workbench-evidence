@@ -1,0 +1,9 @@
+# 版本为本机验证环境实录；均为 MIT/Apache-2.0/BSD/PostgreSQL 许可，无 GPL/AGPL
+fastapi==0.163.2
+pydantic==2.14.3
+SQLAlchemy==2.1.9
+psycopg[binary]==3.3.9
+httpx==0.28.1
+pytest==9.2.0
+PyJWT==2.15.1
+# 可选（客户环境完整服务用）：uvicorn[standard], pytest-asyncio

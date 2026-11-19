@@ -1,0 +1,27 @@
+# 投标交付版：干净机器 `docker compose up --build -d` 一键起服务（客户环境验证）
+# 本机无 Docker，故本机改用直连 PG16 + ASGITransport 出真证据（见 VERIFICATION.md）
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: clawhunt
+      POSTGRES_PASSWORD: clawhunt
+      POSTGRES_DB: clawhunt
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawhunt"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://clawhunt:clawhunt@db:5432/clawhunt
+      VAULT_PEPPER: demo-pepper-replace-in-prod
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
